@@ -63,14 +63,14 @@ namespace Confluent.Kafka
                         PtrToStringUTF8(Librdkafka.topic_result_error_string(topicResultPtr)))
             }).ToList();
         }
-        private unsafe List<DeleteGroupReport> extractGroupResults(IntPtr groupResultsPtr, int groupResultsCount)
+        private unsafe List<DeleteGroupReport> extractDeleteGroupResults(IntPtr groupResultsPtr, int groupResultsCount)
         {
             IntPtr[] groupResultsPtrArr = new IntPtr[groupResultsCount];
             Marshal.Copy(groupResultsPtr, groupResultsPtrArr, 0, groupResultsCount);
 
             return groupResultsPtrArr.Select(groupResultPtr =>
             {
-                var result = (DeleteGroupResult)Marshal.PtrToStructure(groupResultPtr, typeof(DeleteGroupResult));
+                var result = Marshal.PtrToStructure<DeleteGroupResult>(groupResultPtr);
                 return new DeleteGroupReport
                 {
                     Group = result.group,
@@ -243,7 +243,7 @@ namespace Confluent.Kafka
                                                 return;
                                             }
 
-                                            var result = extractGroupResults(
+                                            var result = extractDeleteGroupResults(
                                                 Librdkafka.DeleteGroups_result_groups(eventPtr, out UIntPtr resultCountPtr), (int)resultCountPtr).ToList();
 
                                             if (result.Any(r => r.Error.IsError))
