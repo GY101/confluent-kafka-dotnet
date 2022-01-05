@@ -17,6 +17,7 @@
 // Refer to LICENSE for more information.
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Confluent.Kafka.Admin;
 
@@ -79,7 +80,7 @@ namespace Confluent.Kafka.Examples
             {
                 try
                 {
-                    await adminClient.CreateTopicsAsync(new TopicSpecification[] { 
+                    await adminClient.CreateTopicsAsync(new TopicSpecification[] {
                         new TopicSpecification { Name = topicName, ReplicationFactor = 1, NumPartitions = 1 } });
                 }
                 catch (CreateTopicsException e)
@@ -91,31 +92,21 @@ namespace Confluent.Kafka.Examples
 
         public static async Task Main(string[] args)
         {
-            if (args.Length < 2)
+            try
             {
-                Console.WriteLine("usage: .. <bootstrapServers> <list-groups|metadata|library-version|create-topic> [topic-name]");
-                System.Environment.Exit(1);
+                using (var adminClient = new AdminClientBuilder(new AdminClientConfig { BootstrapServers = "172.28.34.128:9092" }).Build())
+                {
+                    await adminClient.DeleteGroupsAsync(new List<string>
+                {
+                    "123-"
+                });
+                }
             }
-            
-            switch (args[1])
+            catch (DeleteGroupsException ex)
             {
-                case "library-version":
-                    Console.WriteLine($"librdkafka Version: {Library.VersionString} ({Library.Version:X})");
-                    Console.WriteLine($"Debug Contexts: {string.Join(", ", Library.DebugContexts)}");
-                    break;
-                case "list-groups":
-                    ListGroups(args[0]);
-                    break;
-                case "metadata":
-                    PrintMetadata(args[0]);
-                    break;
-                case "create-topic":
-                    await CreateTopicAsync(args[0], args[2]);
-                    break;
-                default:
-                    Console.WriteLine($"unknown command: {args[1]}");
-                    break;
+                Console.WriteLine(ex.Message);
             }
+            Console.WriteLine("Íê³É£¡£¡£¡£¡");
         }
     }
 }
