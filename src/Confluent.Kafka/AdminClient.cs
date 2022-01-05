@@ -55,15 +55,29 @@ namespace Confluent.Kafka
             IntPtr[] topicResultsPtrArr = new IntPtr[topicResultsCount];
             Marshal.Copy(topicResultsPtr, topicResultsPtrArr, 0, topicResultsCount);
 
-            return topicResultsPtrArr.Select(topicResultPtr => new CreateTopicReport 
-                {
-                    Topic = PtrToStringUTF8(Librdkafka.topic_result_name(topicResultPtr)),
-                    Error = new Error(
-                        Librdkafka.topic_result_error(topicResultPtr), 
+            return topicResultsPtrArr.Select(topicResultPtr => new CreateTopicReport
+            {
+                Topic = PtrToStringUTF8(Librdkafka.topic_result_name(topicResultPtr)),
+                Error = new Error(
+                        Librdkafka.topic_result_error(topicResultPtr),
                         PtrToStringUTF8(Librdkafka.topic_result_error_string(topicResultPtr)))
-                }).ToList();
+            }).ToList();
         }
+        private unsafe List<DeleteGroupReport> extractGroupResults(IntPtr groupResultsPtr, int groupResultsCount)
+        {
+            IntPtr[] groupResultsPtrArr = new IntPtr[groupResultsCount];
+            Marshal.Copy(groupResultsPtr, groupResultsPtrArr, 0, groupResultsCount);
 
+            return groupResultsPtrArr.Select(groupResultPtr =>
+            {
+                var result = (DeleteGroupResult)Marshal.PtrToStructure(groupResultPtr, typeof(DeleteGroupResult));
+                return new DeleteGroupReport
+                {
+                    Group = result.group,
+                    Error = new Error(result.error->code, PtrToStringUTF8((IntPtr)result.error->errstr))
+                };
+            }).ToList();
+        }
         private ConfigEntryResult extractConfigEntry(IntPtr configEntryPtr)
         {
             var synonyms = new List<ConfigSynonym>();
@@ -74,7 +88,7 @@ namespace Confluent.Kafka
                 Marshal.Copy(synonymsPtr, synonymsPtrArr, 0, (int)synonymsCount);
                 synonyms = synonymsPtrArr
                     .Select(synonymPtr => extractConfigEntry(synonymPtr))
-                    .Select(e => new ConfigSynonym { Name = e.Name, Value = e.Value, Source = e.Source } )
+                    .Select(e => new ConfigSynonym { Name = e.Name, Value = e.Value, Source = e.Source })
                     .ToList();
             }
 
@@ -113,7 +127,8 @@ namespace Confluent.Kafka
                     .Select(configEntryPtr => extractConfigEntry(configEntryPtr))
                     .ToDictionary(e => e.Name);
 
-                result.Add(new DescribeConfigsReport { 
+                result.Add(new DescribeConfigsReport
+                {
                     ConfigResource = new ConfigResource { Name = resourceName, Type = resourceConfigType },
                     Entries = configEntries,
                     Error = new Error(errorCode, errorReason)
@@ -168,7 +183,7 @@ namespace Confluent.Kafka
                                         {
                                             if (errorCode != ErrorCode.NoError)
                                             {
-                                                Task.Run(() => 
+                                                Task.Run(() =>
                                                     ((TaskCompletionSource<List<CreateTopicReport>>)adminClientResult).TrySetException(
                                                         new KafkaException(kafkaHandle.CreatePossiblyFatalError(errorCode, errorStr))));
                                                 return;
@@ -179,13 +194,13 @@ namespace Confluent.Kafka
 
                                             if (result.Any(r => r.Error.IsError))
                                             {
-                                                Task.Run(() => 
+                                                Task.Run(() =>
                                                     ((TaskCompletionSource<List<CreateTopicReport>>)adminClientResult).TrySetException(
                                                         new CreateTopicsException(result)));
                                             }
                                             else
                                             {
-                                                Task.Run(() => 
+                                                Task.Run(() =>
                                                     ((TaskCompletionSource<List<CreateTopicReport>>)adminClientResult).TrySetResult(result));
                                             }
                                         }
@@ -218,7 +233,32 @@ namespace Confluent.Kafka
                                             }
                                         }
                                         break;
+                                    case Librdkafka.EventType.DeleteGroups_Result:
+                                        {
+                                            if (errorCode != ErrorCode.NoError)
+                                            {
+                                                Task.Run(() =>
+                                                    ((TaskCompletionSource<List<DeleteGroupReport>>)adminClientResult).TrySetException(
+                                                        new KafkaException(kafkaHandle.CreatePossiblyFatalError(errorCode, errorStr))));
+                                                return;
+                                            }
 
+                                            var result = extractGroupResults(
+                                                Librdkafka.DeleteGroups_result_groups(eventPtr, out UIntPtr resultCountPtr), (int)resultCountPtr).ToList();
+
+                                            if (result.Any(r => r.Error.IsError))
+                                            {
+                                                Task.Run(() =>
+                                                    ((TaskCompletionSource<List<DeleteGroupReport>>)adminClientResult).TrySetException(
+                                                        new DeleteGroupsException(result)));
+                                            }
+                                            else
+                                            {
+                                                Task.Run(() =>
+                                                    ((TaskCompletionSource<List<DeleteGroupReport>>)adminClientResult).TrySetResult(result));
+                                            }
+                                        }
+                                        break;
                                     case Librdkafka.EventType.CreatePartitions_Result:
                                         {
                                             if (errorCode != ErrorCode.NoError)
@@ -298,7 +338,7 @@ namespace Confluent.Kafka
                                             else
                                             {
                                                 Task.Run(() =>
-                                                    ((TaskCompletionSource<List<AlterConfigsReport>>) adminClientResult).TrySetResult(result));
+                                                    ((TaskCompletionSource<List<AlterConfigsReport>>)adminClientResult).TrySetResult(result));
                                             }
                                         }
                                         break;
@@ -326,12 +366,12 @@ namespace Confluent.Kafka
                                                 Task.Run(() =>
                                                     ((TaskCompletionSource<List<DeleteRecordsResult>>)adminClientResult).TrySetResult(
                                                         result.Select(a => new DeleteRecordsResult
-                                                            {
-                                                                Topic = a.Topic,
-                                                                Partition = a.Partition,
-                                                                Offset = a.Offset,
-                                                                Error = a.Error // internal, not exposed in success case.
-                                                            }).ToList()));
+                                                        {
+                                                            Topic = a.Topic,
+                                                            Partition = a.Partition,
+                                                            Offset = a.Offset,
+                                                            Error = a.Error // internal, not exposed in success case.
+                                                        }).ToList()));
                                             }
                                         }
                                         break;
@@ -353,7 +393,7 @@ namespace Confluent.Kafka
                             }
                         }
                     }
-                    catch (OperationCanceledException) {}
+                    catch (OperationCanceledException) { }
                 }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
 
@@ -365,6 +405,7 @@ namespace Confluent.Kafka
             { Librdkafka.EventType.AlterConfigs_Result, typeof(TaskCompletionSource<List<AlterConfigsReport>>) },
             { Librdkafka.EventType.CreatePartitions_Result, typeof(TaskCompletionSource<List<CreatePartitionsReport>>) },
             { Librdkafka.EventType.DeleteRecords_Result, typeof(TaskCompletionSource<List<DeleteRecordsResult>>) },
+            { Librdkafka.EventType.DeleteGroups_Result, typeof(TaskCompletionSource<List<DeleteGroupReport>>) },
         };
 
 
@@ -439,6 +480,18 @@ namespace Confluent.Kafka
         }
 
         /// <summary>
+        ///     Refer to <see cref="Confluent.Kafka.IAdminClient.DeleteGroupsAsync(IEnumerable{string}, DeleteGroupsOptions)" />
+        /// </summary>
+        public Task DeleteGroupsAsync(IEnumerable<string> groups, DeleteGroupsOptions options = null)
+        {
+            var completionSource = new TaskCompletionSource<List<DeleteGroupReport>>();
+            var gch = GCHandle.Alloc(completionSource);
+            Handle.LibrdkafkaHandle.DeleteGroups(
+                groups, options, resultQueue,
+                GCHandle.ToIntPtr(gch));
+            return completionSource.Task;
+        }
+        /// <summary>
         ///     Refer to <see cref="Confluent.Kafka.IAdminClient.CreatePartitionsAsync(IEnumerable{PartitionsSpecification}, CreatePartitionsOptions)" />
         /// </summary>
         public Task CreatePartitionsAsync(
@@ -485,7 +538,7 @@ namespace Confluent.Kafka
         ///     or AdminClient handle.
         /// </param>
         internal AdminClient(Handle handle)
-        {                            
+        {
             this.ownedClient = null;
             this.handle = handle;
             Init();
@@ -508,9 +561,9 @@ namespace Confluent.Kafka
             if (builder.StatisticsHandler != null) { producerBuilder.SetStatisticsHandler((_, stats) => builder.StatisticsHandler(this, stats)); }
             if (builder.OAuthBearerTokenRefreshHandler != null) { producerBuilder.SetOAuthBearerTokenRefreshHandler(builder.OAuthBearerTokenRefreshHandler); }
             this.ownedClient = producerBuilder.Build();
-            
+
             this.handle = new Handle
-            { 
+            {
                 Owner = this,
                 LibrdkafkaHandle = ownedClient.Handle.LibrdkafkaHandle
             };

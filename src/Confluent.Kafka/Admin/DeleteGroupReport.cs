@@ -1,4 +1,4 @@
-// Copyright 2018 Confluent Inc.
+﻿// Copyright 2018 Confluent Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,26 +15,23 @@
 // Refer to LICENSE for more information.
 
 
-using Confluent.Kafka.Impl;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Confluent.Kafka.Admin
 {
     /// <summary>
-    ///     The result of a request to create a specific topic.
+    ///     The result of a request to delete a specific group.
     /// </summary>
-    public class CreateTopicReport
+    public class DeleteGroupReport
     {
         /// <summary>
-        ///     The topic name.
+        ///     The Group.
         /// </summary>
-        public string Topic { get; set; }
+        public string Group { get; set; }
 
         /// <summary>
-        ///     The error (or success) of the create topic request.
+        ///     The error (or success) of the delete topic request.
         /// </summary>
         public Error Error { get; set; }
-    } 
-
+    }
 }

@@ -1525,7 +1525,6 @@ namespace Confluent.Kafka.Impl
 
             Librdkafka.AdminOptions_destroy(optionsPtr);
         }
-
         internal void DeleteTopics(
             IEnumerable<string> deleteTopics,
             DeleteTopicsOptions options,
@@ -1572,6 +1571,50 @@ namespace Confluent.Kafka.Impl
             Librdkafka.AdminOptions_destroy(optionsPtr);
         }
 
+        internal void DeleteGroups(
+            IEnumerable<string> deleteGroups,
+            DeleteGroupsOptions options,
+            IntPtr resultQueuePtr,
+            IntPtr completionSourcePtr)
+        {
+            ThrowIfHandleClosed();
+            options = options == null ? new DeleteGroupsOptions() : options;
+            IntPtr optionsPtr = Librdkafka.AdminOptions_new(handle, Librdkafka.AdminOp.DeleteGroups);
+            setOption_RequestTimeout(optionsPtr, options.RequestTimeout);
+            setOption_OperationTimeout(optionsPtr, options.OperationTimeout);
+            setOption_completionSource(optionsPtr, completionSourcePtr);
+
+            IntPtr[] deleteGroupsPtrs = new IntPtr[deleteGroups.Count()];
+            try
+            {
+                int idx = 0;
+                foreach (var deleteGroup in deleteGroups)
+                {
+                    if (deleteGroup == null)
+                    {
+                        throw new ArgumentException("Cannot delete groups because one or more groups were specified as null.");
+                    }
+
+                    var deleteTopicPtr = Librdkafka.DeleteGroup_new(deleteGroup);
+                    deleteGroupsPtrs[idx] = deleteTopicPtr;
+                    idx += 1;
+                }
+
+                Librdkafka.DeleteGroups(handle, deleteGroupsPtrs, (UIntPtr)deleteGroupsPtrs.Length, optionsPtr, resultQueuePtr);
+            }
+            finally
+            {
+                foreach (var deleteGroupPtr in deleteGroupsPtrs)
+                {
+                    if (deleteGroupPtr != IntPtr.Zero)
+                    {
+                        Librdkafka.DeleteGroup_destroy(deleteGroupPtr);
+                    }
+                }
+            }
+
+            Librdkafka.AdminOptions_destroy(optionsPtr);
+        }
         internal void CreateTopics(
             IEnumerable<TopicSpecification> newTopics,
             CreateTopicsOptions options,

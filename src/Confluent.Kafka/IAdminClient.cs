@@ -128,6 +128,13 @@ namespace Confluent.Kafka
         /// </returns>
         Task DeleteTopicsAsync(IEnumerable<string> topics, DeleteTopicsOptions options = null);
 
+        /// <summary>
+        /// 自己新增的groups 
+        /// </summary>
+        /// <param name="groups"> The group ids to delete.</param>
+        /// <param name="options"> The options to use when deleting groups.</param>
+        /// <returns></returns>
+        Task DeleteGroupsAsync(IEnumerable<string> groups, DeleteGroupsOptions options = null);
 
         /// <summary>
         ///     Create a set of new topics.
