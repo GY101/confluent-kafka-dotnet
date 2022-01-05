@@ -23,11 +23,11 @@ namespace Confluent.Kafka.Admin
         /// <summary>
         /// 组名
         /// </summary>
-        public string group;
+        public string Group;
         /// <summary>
         /// Error object, or NULL on success
         /// </summary>
-        public Errors* error;
+        public Errors* Error;
 
         //用不到直接忽略
         /** Partitions, used by DeleteConsumerGroupOffsets. */
@@ -42,7 +42,7 @@ namespace Confluent.Kafka.Admin
         /// 枚举类型
         /// </summary>
         [MarshalAs(UnmanagedType.I4)]
-        public ErrorCode code;
+        public ErrorCode Code;
 
         /// <summary>
         /// Human readable error string, allocated
@@ -50,7 +50,7 @@ namespace Confluent.Kafka.Admin
         /// after the struct.
         /// Possibly NULL.
         /// </summary>
-        public char* errstr;
+        public char* ErrStr;
 
         //用不到直接忽略
         //rd_bool_t fatal;          /**< This error is a fatal error. */

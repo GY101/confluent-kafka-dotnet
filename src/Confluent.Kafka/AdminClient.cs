@@ -71,10 +71,19 @@ namespace Confluent.Kafka
             return groupResultsPtrArr.Select(groupResultPtr =>
             {
                 var result = Marshal.PtrToStructure<DeleteGroupResult>(groupResultPtr);
+                //空值验证，如果 error 为null 表示没有错误
+                if (result.Error == null)
+                {
+                    return new DeleteGroupReport
+                    {
+                        Group = result.Group,
+                        Error = new Error(ErrorCode.NoError)
+                    };
+                }
                 return new DeleteGroupReport
                 {
-                    Group = result.group,
-                    Error = new Error(result.error->code, PtrToStringUTF8((IntPtr)result.error->errstr))
+                    Group = result.Group,
+                    Error = new Error(result.Error->Code, PtrToStringUTF8((IntPtr)result.Error->ErrStr))
                 };
             }).ToList();
         }
